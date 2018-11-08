@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -eux
+
+dep ensure -v
