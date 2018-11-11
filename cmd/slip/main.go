@@ -13,7 +13,7 @@ var rootCmd = &cobra.Command{
 	Long: `A tool to help make the most of Docker when developing
 projects locally`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("slipway")
+		cmd.Help()
 	},
 }
 

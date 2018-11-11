@@ -32,3 +32,8 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+# 2.7.0-rc.0
+[[override]]
+  name = "github.com/docker/distribution"
+  revision = "17b3ff188dfde7d5b59a94ab99e6a967b3a59563"
