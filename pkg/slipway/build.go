@@ -50,7 +50,7 @@ func (*Project) Build() error {
 	body := progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
 	ctx := context.Background()
-	docker, err := client.NewEnvClient()
+	docker, err := client.NewClientWithOpts(client.WithVersion("1.34"), client.FromEnv)
 	if err != nil {
 		return err
 	}
