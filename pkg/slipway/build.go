@@ -1,11 +1,13 @@
 package slipway
 
 import (
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/docker/cli/cli/command/image/build"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
@@ -14,8 +16,13 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (*Project) Build() error {
-	projectBuild := SlipProject.Container.Build
+func (project *Project) Build() error {
+	projectBuild := project.Container.Build
+
+	oldImageID, err := getImageID(fmt.Sprintf("%s:slipway", project.Name))
+	if err != nil {
+		return err
+	}
 
 	contextDir, relDockerfile, err := build.GetContextFromLocalDir(projectBuild.Context, projectBuild.Dockerfile)
 	if err != nil {
@@ -44,6 +51,7 @@ func (*Project) Build() error {
 		CacheFrom:  projectBuild.CacheFrom,
 		Target:     projectBuild.Target,
 		Dockerfile: relDockerfile,
+		Tags:       []string{fmt.Sprintf("%s:slipway", project.Name)},
 	}
 
 	progressOutput := streamformatter.NewProgressOutput(os.Stdout)
@@ -65,5 +73,48 @@ func (*Project) Build() error {
 		return err
 	}
 
+	newImageID, err := getImageID(fmt.Sprintf("%s:slipway", project.Name))
+	if err != nil {
+		return err
+	}
+
+	if oldImageID != "" && oldImageID != newImageID {
+		_, err = docker.ImageRemove(ctx, oldImageID, types.ImageRemoveOptions{
+			Force:         false,
+			PruneChildren: true,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func getImageID(name string) (string, error) {
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.WithVersion("1.34"), client.FromEnv)
+	if err != nil {
+		return "", err
+	}
+
+	images, err := docker.ImageList(ctx, types.ImageListOptions{
+		All: false,
+		Filters: filters.NewArgs(filters.KeyValuePair{
+			Key:   "reference",
+			Value: name,
+		}),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(images) == 0 {
+		return "", nil
+	} else if len(images) > 1 {
+		return "", fmt.Errorf("got %d images named %s", len(images), name)
+	}
+
+	return images[0].ID, nil
 }
